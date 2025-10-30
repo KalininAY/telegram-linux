@@ -7,10 +7,8 @@ import logging
 from typing import Dict, Any, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel, Field
-import psutil
-
 
 # Настройка логирования
 logging.basicConfig(
@@ -32,13 +30,6 @@ class CommandResponse(BaseModel):
     stderr: str
     command: str
     execution_time: float
-
-
-class HealthResponse(BaseModel):
-    status: str
-    timestamp: str
-    uptime: float
-    system_info: Dict[str, Any]
 
 
 class Config:
@@ -101,9 +92,7 @@ class SudoManager:
                 stderr=asyncio.subprocess.PIPE
             )
             
-            stdout, stderr = await process.communicate(
-                input=(self.password + '\n').encode()
-            )
+            await process.communicate(input=(self.password + '\n').encode())
             
             return process.returncode == 0
         except Exception as e:
@@ -201,7 +190,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Telegram Linux Server",
     description="Server for executing terminal commands with sudo handling",
-    version="2.0.0",
+    version="2.0.1",
     lifespan=lifespan
 )
 
@@ -222,46 +211,16 @@ async def execute_command(request: CommandRequest):
     return result
 
 
-@app.get("/health", response_model=HealthResponse)
-async def health_check():
-    """Проверка состояния сервера"""
-    import time
-    from datetime import datetime
-    
-    # Получаем информацию о системе
-    memory = psutil.virtual_memory()
-    disk = psutil.disk_usage('/')
-    cpu_percent = psutil.cpu_percent(interval=1)
-    
-    system_info = {
-        "cpu_percent": cpu_percent,
-        "memory_total_gb": round(memory.total / (1024**3), 2),
-        "memory_used_gb": round(memory.used / (1024**3), 2),
-        "memory_percent": memory.percent,
-        "disk_total_gb": round(disk.total / (1024**3), 2),
-        "disk_used_gb": round(disk.used / (1024**3), 2),
-        "disk_percent": round((disk.used / disk.total) * 100, 1)
-    }
-    
-    return HealthResponse(
-        status="OK",
-        timestamp=datetime.now().isoformat(),
-        uptime=time.time() - start_time,
-        system_info=system_info
-    )
-
-
 @app.get("/")
 async def root():
     """Информация о сервере"""
     return {
         "name": "Telegram Linux Server",
-        "version": "2.0.0",
+        "version": "2.0.1",
         "description": "High-performance server for executing terminal commands with sudo handling",
         "framework": "FastAPI",
         "endpoints": {
             "POST /execute": "Execute terminal command",
-            "GET /health": "Health check with system info",
             "GET /": "Server info",
             "GET /docs": "Interactive API documentation"
         }
@@ -271,6 +230,7 @@ async def root():
 # Запуск приложения
 if __name__ == "__main__":
     import uvicorn
+    import time
     start_time = time.time()
     
     uvicorn.run(
