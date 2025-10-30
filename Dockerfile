@@ -1,11 +1,11 @@
 FROM python:3.11-alpine
 
-# Установка системных зависимостей
+# Установка системных пакетов
 RUN apk add --no-cache \
     sudo \
     bash \
     procps \
-    && rm -rf /var/cache/apk/*
+    curl
 
 # Создание пользователя приложения
 RUN addgroup -g 1001 -S appuser && \
@@ -16,8 +16,10 @@ RUN echo 'appuser ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
 WORKDIR /app
 
-# Копирование и установка зависимостей
+# Копирование зависимостей
 COPY requirements.txt .
+
+# Установка python-зависимостей (без psutil)
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
